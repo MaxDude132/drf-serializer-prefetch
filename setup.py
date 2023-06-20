@@ -1,0 +1,20 @@
+from pathlib import Path
+from setuptools import setup, find_packages
+
+
+VERSION = "1.0.3"
+DESCRIPTION = "An automatic prefetcher for django-rest-framework."
+this_directory = Path(__file__).parent
+LONG_DESCRIPTION = (this_directory / "README.md").read_text()
+
+setup(
+    name="serializer_prefetch",
+    version=VERSION,
+    author="Maxime Toussaint",
+    author_email="m.toussaint@mail.com",
+    description=DESCRIPTION,
+    long_description=LONG_DESCRIPTION,
+    long_description_content_type="text/markdown",
+    packages=find_packages(),
+    install_requires=("django>=3.2.0", "djangorestframework>=3.12"),
+)
