@@ -285,7 +285,7 @@ class PrefetchingSerializerMixin(PrefetchingLogicMixin):
             if isinstance(instance, Model):
                 return self.call_to_representation(instance)
 
-        super().to_representation(instance)
+        return super().to_representation(instance)
 
     def __init__(self, instance=None, data=empty, **kwargs):
         self._auto_prefetch = kwargs.pop("auto_prefetch", True)
