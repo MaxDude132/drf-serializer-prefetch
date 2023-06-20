@@ -123,6 +123,8 @@ class PrefetchingLogicMixin:
             custom_current_relation = additional_serializer_data.get(
                 "relation_and_field", ""
             )
+            if custom_current_relation:
+                prefetch_items.append(custom_current_relation)
 
             if current_relation:
                 custom_current_relation = self._get_joined_prefetch(
