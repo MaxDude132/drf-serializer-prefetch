@@ -158,7 +158,7 @@ If you had a ListSerializer for you Serializer, you will most likely want to kee
 
 ### Adding compatibility with django-zen-queries or other libraries
 
-The goal of this library is to make is easy to not have to think about prefetching. However, this comes with the potential danger of not thinking enough about prefetching. To avoid discovering issues only once in production, you can extend the `PrefetchingListSerializer` and `PrefetchingSerializerMixin` by defining a new mixin that will be inherited by both. In this mixin, you can override the `queryset_after_prefetch` and `call_to_representation` methods to add some behaviour right after the prefetching has been done on the queryset and right before or after calling `super().to_representation(instance)` on the serializer. For django-zen-queries, it looks something like this:
+The goal of this library is to make it easy to not have to think about prefetching. However, this comes with the potential danger of not thinking enough about prefetching. To avoid discovering issues only once in production, you can add django-zen-queries in the mix. To do so, simply extend the `PrefetchingListSerializer` and `PrefetchingSerializerMixin` by defining a new mixin that will be inherited by both. In this mixin, you can override the `queryset_after_prefetch` and `call_to_representation` methods to add some behaviour right after the prefetching has been done on the queryset and right before or after calling `super().to_representation(instance)` on the serializer respectively. For django-zen-queries, it looks something like this:
 
 ``` python
 from contextlib import nullcontext

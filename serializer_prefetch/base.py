@@ -254,7 +254,7 @@ class PrefetchingListSerializer(PrefetchingLogicMixin, serializers.ListSerialize
 
         self.call_other_prefetching_methods()
 
-        return self.call_to_representation(super().to_representation, instance)
+        return self.call_to_representation(instance)
 
 
 class Dict(dict):
@@ -283,7 +283,7 @@ class PrefetchingSerializerMixin(PrefetchingLogicMixin):
             self.call_other_prefetching_methods()
 
             if isinstance(instance, Model):
-                return self.call_to_representation(super().to_representation, instance)
+                return self.call_to_representation(instance)
 
         super().to_representation(instance)
 
