@@ -2,7 +2,7 @@ from pathlib import Path
 from setuptools import setup, find_packages
 
 
-VERSION = "1.0.3"
+VERSION = "1.0.4"
 DESCRIPTION = "An automatic prefetcher for django-rest-framework."
 this_directory = Path(__file__).parent
 LONG_DESCRIPTION = (this_directory / "README.md").read_text()
@@ -17,4 +17,5 @@ setup(
     long_description_content_type="text/markdown",
     packages=find_packages(),
     install_requires=("django>=3.2.0", "djangorestframework>=3.12"),
+    url="https://github.com/MaxDude132/drf-serializer-prefetch",
 )
