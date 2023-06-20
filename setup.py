@@ -8,7 +8,7 @@ this_directory = Path(__file__).parent
 LONG_DESCRIPTION = (this_directory / "README.md").read_text()
 
 setup(
-    name="serializer_prefetch",
+    name="drf-serializer-prefetch",
     version=VERSION,
     author="Maxime Toussaint",
     author_email="m.toussaint@mail.com",
