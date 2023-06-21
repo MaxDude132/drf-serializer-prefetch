@@ -1,3 +1,5 @@
+[![codecov](https://codecov.io/gh/MaxDude132/drf-serializer-prefetch/branch/main/graph/badge.svg?token=MFI4E7L7SU)](https://codecov.io/gh/MaxDude132/drf-serializer-prefetch)
+
 # drf-serializer-prefetch
 
 An automatic prefetcher that looks at the serializer fields and determines what needs to be prefetched accordingly.
