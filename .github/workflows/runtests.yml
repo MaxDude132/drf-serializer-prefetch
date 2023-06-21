@@ -17,4 +17,11 @@ jobs:
         pip install tox tox-gh-actions
     - name: Test with tox
       run: tox
-    
+    - name: Run test locally once
+      run: |
+        pip install -r ./requirements.txt
+        python -m coverage run -m runtests
+    - name: Upload coverage reports to Codecov
+      uses: codecov/codecov-action@v3
+      env: 
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
