@@ -19,7 +19,7 @@ jobs:
       run: tox
     - name: Run test locally once
       run: |
-        pip install coverage
+        pip install -r ./requirements.txt
         python -m coverage run -m runtests
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v3
