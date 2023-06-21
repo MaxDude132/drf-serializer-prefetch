@@ -123,15 +123,22 @@ class PrefetchingLogicMixin:
             custom_current_relation = additional_serializer_data.get(
                 "relation_and_field", ""
             )
-            if custom_current_relation:
-                prefetch_items.append(custom_current_relation)
 
             if current_relation:
                 custom_current_relation = self._get_joined_prefetch(
                     current_relation, custom_current_relation
                 )
 
+            if custom_current_relation:
+                prefetch_items.append(custom_current_relation)
+
             additional_serializer = additional_serializer_data.get("serializer")
+            if additional_serializer is None:
+                raise ValueError(
+                    _(
+                        "The additional_serializer value is missing the key `serializer`."
+                    )
+                )
 
             add_to_select, add_to_prefetch = self.get_prefetch(
                 additional_serializer,
@@ -235,19 +242,21 @@ class PrefetchingListSerializer(PrefetchingLogicMixin, serializers.ListSerialize
         select_items, prefetch_items = self.get_prefetch(child)
 
         if isinstance(instance, QuerySet):
-            # This is a test to see if the improved performance in local
-            # will translate to staging
-            # instance = instance.select_related(*select_items)
-            instance = instance.prefetch_related(*select_items, *prefetch_items)
+            instance = instance.select_related(*select_items)
+            instance = instance.prefetch_related(*prefetch_items)
             instance = self.queryset_after_prefetch(instance)
 
         else:
-            to_prefetch = instance
             if not isinstance(instance, Iterable):
-                to_prefetch = [instance]
+                raise ValueError(
+                    _(
+                        "instance is not an Iterable. Do not pass "
+                        "`many=True` to the serializer."
+                    )
+                )
 
             for related_lookup in set(select_items + prefetch_items):
-                prefetch_related_objects(to_prefetch, related_lookup)
+                prefetch_related_objects(instance, related_lookup)
 
         if isinstance(instance, list):
             instance = List(instance)
@@ -277,7 +286,16 @@ class PrefetchingSerializerMixin(PrefetchingLogicMixin):
             select_items, prefetch_items = self.get_prefetch(self)
 
             for related_lookup in set(select_items + prefetch_items):
-                prefetch_related_objects([instance], related_lookup)
+                try:
+                    prefetch_related_objects([instance], related_lookup)
+                except AttributeError as exc:
+                    raise ValueError(
+                        _(
+                            "Got an AttributeError. You might have forgotten to "
+                            "add `many=True` on the serializer."
+                        )
+                    ) from exc
+
             if isinstance(instance, dict):
                 instance = Dict(instance)
             instance._braindate_prefetch_done = True
