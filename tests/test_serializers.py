@@ -283,6 +283,139 @@ class SerializersTestCase(TestCase):
             ],
         )
 
+    def test_select_related_with_depth(self):
+        class CountrySerializer(
+            PrefetchingSerializerMixin, serializers.ModelSerializer
+        ):
+            continent = serializers.SerializerMethodField()
+
+            def get_continent(self, obj):
+                return obj.continent.label
+
+            class Meta:
+                model = Country
+                fields = ("label", "continent")
+
+        class ToppingSerializer(
+            PrefetchingSerializerMixin, serializers.ModelSerializer
+        ):
+            origin = CountrySerializer()
+
+            class Meta:
+                model = Topping
+                fields = ("label", "origin")
+
+        class PizzaSerializer(PrefetchingSerializerMixin, serializers.ModelSerializer):
+            toppings = ToppingSerializer(many=True)
+            provenance = CountrySerializer()
+
+            class Meta:
+                model = Pizza
+                fields = ("label", "toppings", "provenance")
+
+        pizzas = Pizza.objects.all()
+        serializer = PizzaSerializer(pizzas, many=True)
+
+        with self.assertNumQueries(8):
+            data = serializer.data
+
+        self.assertEqual(
+            data,
+            [
+                {
+                    "label": "Hawaiian",
+                    "toppings": [
+                        {
+                            "label": "Ham",
+                            "origin": {"label": "China", "continent": "Asia"},
+                        },
+                        {
+                            "label": "Pineapple",
+                            "origin": {"label": "Argentina", "continent": "America"},
+                        },
+                    ],
+                    "provenance": {"label": "Canada", "continent": "America"},
+                },
+                {
+                    "label": "Pepperoni",
+                    "toppings": [
+                        {
+                            "label": "Pepperoni",
+                            "origin": {"label": "USA", "continent": "America"},
+                        }
+                    ],
+                    "provenance": {"label": "USA", "continent": "America"},
+                },
+            ],
+        )
+
+        class CountrySerializer(
+            PrefetchingSerializerMixin, serializers.ModelSerializer
+        ):
+            select_related = ("continent",)
+
+            continent = serializers.SerializerMethodField()
+
+            def get_continent(self, obj):
+                return obj.continent.label
+
+            class Meta:
+                model = Country
+                fields = ("label", "continent")
+
+        class ToppingSerializer(
+            PrefetchingSerializerMixin, serializers.ModelSerializer
+        ):
+            origin = CountrySerializer()
+
+            class Meta:
+                model = Topping
+                fields = ("label", "origin")
+
+        class PizzaSerializer(PrefetchingSerializerMixin, serializers.ModelSerializer):
+            toppings = ToppingSerializer(many=True)
+            provenance = CountrySerializer()
+
+            class Meta:
+                model = Pizza
+                fields = ("label", "toppings", "provenance")
+
+        pizzas = Pizza.objects.all()
+        serializer = PizzaSerializer(pizzas, many=True)
+
+        with self.assertNumQueries(4):
+            data = serializer.data
+
+        self.assertEqual(
+            data,
+            [
+                {
+                    "label": "Hawaiian",
+                    "toppings": [
+                        {
+                            "label": "Ham",
+                            "origin": {"label": "China", "continent": "Asia"},
+                        },
+                        {
+                            "label": "Pineapple",
+                            "origin": {"label": "Argentina", "continent": "America"},
+                        },
+                    ],
+                    "provenance": {"label": "Canada", "continent": "America"},
+                },
+                {
+                    "label": "Pepperoni",
+                    "toppings": [
+                        {
+                            "label": "Pepperoni",
+                            "origin": {"label": "USA", "continent": "America"},
+                        }
+                    ],
+                    "provenance": {"label": "USA", "continent": "America"},
+                },
+            ],
+        )
+
     def test_get_additional_serializers_with_depth(self):
         class ToppingSerializer(
             PrefetchingSerializerMixin, serializers.ModelSerializer
