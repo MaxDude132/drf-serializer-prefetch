@@ -126,3 +126,13 @@ class ConditionsTestCase(TestCase):
 
         with self.assertNumQueries(2):
             serializer.data
+
+    def test_with_pagination(self):
+        # Pagination returns a list instead of a Queryset
+        # Let's test that the prefetching works well still
+
+        pizzas = list(Pizza.objects.all())
+        serializer = PizzaSerializer(pizzas, many=True)
+
+        with self.assertNumQueries(2):
+            serializer.data
