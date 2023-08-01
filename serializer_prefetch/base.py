@@ -1,5 +1,6 @@
 from contextlib import suppress
 from collections.abc import Iterable
+import copy
 
 from django.db.models import Model, QuerySet, prefetch_related_objects, Prefetch
 from django.utils.translation import gettext as _
@@ -111,9 +112,22 @@ class PrefetchingLogicMixin:
         prefetch_items: Iterable[Prefetch],
         return_values: Iterable[Iterable[Prefetch | str]],
     ):
-        return select_items.extend(return_values[0]), prefetch_items.extend(
-            return_values[1]
-        )
+        select_items.extend(return_values[0])
+
+        simple_prefetch = [
+            item.prefetch_through if isinstance(item, Prefetch) else item
+            for item in prefetch_items
+        ]
+        for value in return_values[1]:
+            prefetch_through = (
+                value.prefetch_through if isinstance(value, Prefetch) else value
+            )
+            if prefetch_through in simple_prefetch:
+                continue
+
+            prefetch_items.append(value)
+
+        return select_items, prefetch_items
 
     def _get_custom_relations(self, serializer, current_relation):
         select_related_attr = self.get_select_related_data(serializer)
@@ -254,12 +268,14 @@ class PrefetchingLogicMixin:
             else current_relation.prefetch_to
         )
 
-        item.prefetch_through = "__".join(
+        new_prefetch = copy.deepcopy(item)
+
+        new_prefetch.prefetch_through = "__".join(
             [current_relation_through, item.prefetch_through]
         )
-        item.prefetch_to = "__".join([current_relation_to, item.prefetch_to])
+        new_prefetch.prefetch_to = "__".join([current_relation_to, item.prefetch_to])
 
-        return item
+        return new_prefetch
 
     def _build_computed_related(self, related_attr, current_relation):
         return [
