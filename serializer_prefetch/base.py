@@ -1,7 +1,8 @@
 from contextlib import suppress
 from collections.abc import Iterable
+import copy
 
-from django.db.models import Model, QuerySet, prefetch_related_objects
+from django.db.models import Model, QuerySet, prefetch_related_objects, Prefetch
 from django.utils.translation import gettext as _
 from rest_framework.fields import empty
 from rest_framework import serializers
@@ -21,9 +22,13 @@ class PrefetchingLogicMixin:
 
     def get_prefetch_related_data(self, serializer):
         if hasattr(serializer, "get_prefetch_related"):
-            return serializer.get_prefetch_related()
+            return self._transform_iterable_to_prefetches(
+                serializer.get_prefetch_related()
+            )
 
-        return getattr(serializer, "prefetch_related", [])
+        return self._transform_iterable_to_prefetches(
+            getattr(serializer, "prefetch_related", [])
+        )
 
     def get_additional_serializers_data(self, serializer):
         if hasattr(serializer, "get_additional_serializers"):
@@ -69,7 +74,12 @@ class PrefetchingLogicMixin:
         for method in self._other_prefetching_methods:
             method()
 
-    def get_prefetch(self, serializer, current_relation="", should_prefetch=False):
+    def get_prefetch(
+        self,
+        serializer: serializers.Serializer,
+        current_relation: Prefetch = None,
+        should_prefetch: bool = False,
+    ):
         if hasattr(serializer, "child"):
             serializer = serializer.child
 
@@ -96,10 +106,28 @@ class PrefetchingLogicMixin:
 
         return select_items, prefetch_items
 
-    def _extend_relation_items(self, select_items, prefetch_items, return_values):
-        return select_items.extend(return_values[0]), prefetch_items.extend(
-            return_values[1]
-        )
+    def _extend_relation_items(
+        self,
+        select_items: Iterable[str],
+        prefetch_items: Iterable[Prefetch],
+        return_values: Iterable[Iterable[Prefetch | str]],
+    ):
+        select_items.extend(return_values[0])
+
+        simple_prefetch = [
+            item.prefetch_through if isinstance(item, Prefetch) else item
+            for item in prefetch_items
+        ]
+        for value in return_values[1]:
+            prefetch_through = (
+                value.prefetch_through if isinstance(value, Prefetch) else value
+            )
+            if prefetch_through in simple_prefetch:
+                continue
+
+            prefetch_items.append(value)
+
+        return select_items, prefetch_items
 
     def _get_custom_relations(self, serializer, current_relation):
         select_related_attr = self.get_select_related_data(serializer)
@@ -120,8 +148,8 @@ class PrefetchingLogicMixin:
         prefetch_items = []
 
         for additional_serializer_data in additional_serializers:
-            custom_current_relation = additional_serializer_data.get(
-                "relation_and_field", ""
+            custom_current_relation = self._transform_str_to_prefetch(
+                additional_serializer_data.get("relation_and_field", "")
             )
 
             if current_relation:
@@ -136,7 +164,8 @@ class PrefetchingLogicMixin:
             if additional_serializer is None:
                 raise ValueError(
                     _(
-                        "The additional_serializer value is missing the key `serializer`."
+                        "The additional_serializer value is "
+                        "missing the key `serializer`."
                     )
                 )
 
@@ -151,6 +180,18 @@ class PrefetchingLogicMixin:
             prefetch_items.extend(add_to_prefetch)
 
         return select_items, prefetch_items
+
+    def _get_all_prefetch(self, serializer):
+        yield from (
+            p
+            for p in self.get_prefetch_related_data(serializer)
+            if isinstance(p, Prefetch)
+        )
+        yield from (
+            p["relation_and_field"]
+            for p in self.get_additional_serializers_data(serializer)
+            if isinstance(["relation_and_field"], Prefetch)
+        )
 
     def _get_serializer_field_relations(
         self, serializer, current_relation, should_prefetch
@@ -174,12 +215,20 @@ class PrefetchingLogicMixin:
             if not (relation := info.relations.get(source)) or getattr(
                 field, "method_name", None
             ):
-                continue
+                for prefetch in self._get_all_prefetch(serializer):
+                    if prefetch.prefetch_to == source:
+                        relation = info.relations.get(prefetch.prefetch_through)
+                        break
+                else:
+                    continue
 
             if relation.to_many:
                 future_should_prefetch = True
 
             append_to = prefetch_items if future_should_prefetch else select_items
+
+            if should_prefetch:
+                source = Prefetch(source)
 
             if current_relation:
                 source = self._get_joined_prefetch(current_relation, source)
@@ -197,7 +246,7 @@ class PrefetchingLogicMixin:
 
         return select_items, prefetch_items
 
-    def _get_custom_related(self, related_attr, current_relation=""):
+    def _get_custom_related(self, related_attr, current_relation=None):
         if current_relation:
             computed_related = self._build_computed_related(
                 related_attr, current_relation
@@ -215,13 +264,50 @@ class PrefetchingLogicMixin:
             return serializer.child.Meta.model
 
     @staticmethod
-    def _get_joined_prefetch(current_relation, item):
-        return "__".join([current_relation, item])
+    def _get_joined_prefetch(current_relation: Prefetch | str, item: Prefetch | str):
+        if isinstance(item, str):
+            return "__".join(
+                (
+                    current_relation
+                    if isinstance(current_relation, str)
+                    else current_relation.prefetch_through,
+                    item,
+                )
+            )
+
+        current_relation_through = (
+            current_relation
+            if isinstance(current_relation, str)
+            else current_relation.prefetch_through
+        )
+        current_relation_to = (
+            current_relation
+            if isinstance(current_relation, str)
+            else current_relation.prefetch_to
+        )
+
+        new_prefetch = copy.deepcopy(item)
+
+        new_prefetch.prefetch_through = "__".join(
+            [current_relation_through, item.prefetch_through]
+        )
+        new_prefetch.prefetch_to = "__".join([current_relation_to, item.prefetch_to])
+
+        return new_prefetch
 
     def _build_computed_related(self, related_attr, current_relation):
         return [
             self._get_joined_prefetch(current_relation, item) for item in related_attr
         ]
+
+    def _transform_str_to_prefetch(self, item):
+        if isinstance(item, str):
+            return Prefetch(item)
+
+        return item
+
+    def _transform_iterable_to_prefetches(self, iterable_items):
+        return [self._transform_str_to_prefetch(item) for item in iterable_items]
 
 
 class List(list):
