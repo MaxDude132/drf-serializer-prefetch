@@ -150,6 +150,52 @@ class SomeSerializer(PrefetchingSerializerMixin, serializer.ModelSerializer):
 
 This can be useful to avoid circular dependencies or to add some logic to the prefetching.
 
+----
+
+As of version 1.1.0, the prefetching serializer now allows passing a `Prefetch` object to prefetch_related and to the `relation_and_field` value of `additional_serializers`. This is very useful to avoid fetching more than needed, espescially when filtering is needed in a `SerializerMethodField`. Using this new feature is as simple as using the string lookup:
+
+``` python
+from rest_framework import serializers
+from serializer_prefetch import PrefetchingSerializerMixin
+
+
+class SomeSerializer(PrefetchingSerializerMixin, serializer.ModelSerializer):
+    select_related = (Prefetch('other_field', queryset=OtherField.objects.filter(some_data='some_value'), to_attr='other_field_filtered'),)
+
+    other_field_filtered = serializers.ListField(child=serializers.CharField())
+
+    class Meta:
+        model = SomeModel
+        fields = (
+            'some',
+            'fields',
+            'are',
+            'defined',
+        )
+```
+
+This can also be used to filter out the data before sending it to another serializer:
+
+``` python
+from rest_framework import serializers
+from serializer_prefetch import PrefetchingSerializerMixin
+
+
+class SomeSerializer(PrefetchingSerializerMixin, serializer.ModelSerializer):
+    select_related = (Prefetch('other_field', queryset=OtherField.objects.filter(some_data='some_value'), to_attr='other_field_filtered'),)
+
+    other_field_filtered = OtherFieldSerializer(many=True)
+
+    class Meta:
+        model = SomeModel
+        fields = (
+            'some',
+            'fields',
+            'are',
+            'defined',
+        )
+```
+
 ## Special cases
 
 There are a few situations where you might want to be able to customize the behaviour more. Here are some of the ways you can tweak the Prefetching Serializer to fit the needs of your project.
