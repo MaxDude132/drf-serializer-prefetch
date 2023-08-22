@@ -2,7 +2,7 @@ from pathlib import Path
 from setuptools import setup, find_packages
 
 
-VERSION = "1.1.0b1"
+VERSION = "1.1.0"
 DESCRIPTION = "An automatic prefetcher for django-rest-framework."
 this_directory = Path(__file__).parent
 LONG_DESCRIPTION = (this_directory / "README.md").read_text()

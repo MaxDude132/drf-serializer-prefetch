@@ -311,7 +311,7 @@ class PrefetchingLogicMixin:
 
 
 class List(list):
-    _braindate_prefetch_done = False
+    _serializer_prefetch_done = False
 
 
 class PrefetchingListSerializer(PrefetchingLogicMixin, serializers.ListSerializer):
@@ -320,7 +320,7 @@ class PrefetchingListSerializer(PrefetchingLogicMixin, serializers.ListSerialize
         super().__init__(*args, **kwargs)
 
     def to_representation(self, instance, *args, **kwargs):
-        prefetch_done = getattr(instance, "_braindate_prefetch_done", False)
+        prefetch_done = getattr(instance, "_serializer_prefetch_done", False)
         if prefetch_done or self.parent is not None or not self._auto_prefetch:
             return super().to_representation(instance)
 
@@ -347,7 +347,7 @@ class PrefetchingListSerializer(PrefetchingLogicMixin, serializers.ListSerialize
         if isinstance(instance, list):
             instance = List(instance)
 
-        instance._braindate_prefetch_done = True
+        instance._serializer_prefetch_done = True
 
         self.call_other_prefetching_methods()
 
@@ -355,14 +355,14 @@ class PrefetchingListSerializer(PrefetchingLogicMixin, serializers.ListSerialize
 
 
 class Dict(dict):
-    _braindate_prefetch_done = False
+    _serializer_prefetch_done = False
 
 
 class PrefetchingSerializerMixin(PrefetchingLogicMixin):
     default_list_serializer_class = PrefetchingListSerializer
 
     def to_representation(self, instance, *args, **kwargs):
-        prefetch_done = getattr(instance, "_braindate_prefetch_done", False)
+        prefetch_done = getattr(instance, "_serializer_prefetch_done", False)
         if (
             not prefetch_done
             and self._auto_prefetch
@@ -384,7 +384,7 @@ class PrefetchingSerializerMixin(PrefetchingLogicMixin):
 
             if isinstance(instance, dict):
                 instance = Dict(instance)
-            instance._braindate_prefetch_done = True
+            instance._serializer_prefetch_done = True
 
             self.call_other_prefetching_methods()
 
