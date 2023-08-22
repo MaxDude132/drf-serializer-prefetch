@@ -1,11 +1,12 @@
+from django.db.models import Prefetch
 from django.test import TestCase
 
 from rest_framework import serializers
 
 from serializer_prefetch import PrefetchingSerializerMixin
 
-from tests.models import Pizza, Topping, Country
-from tests.serializers import PizzaSerializer, ToppingSerializer
+from tests.models import Continent, Pizza, Topping, Country
+from tests.serializers import PizzaSerializer, ToppingSerializer, CountrySerializer
 
 
 class ConditionsTestCase(TestCase):
@@ -126,3 +127,92 @@ class ConditionsTestCase(TestCase):
 
         with self.assertNumQueries(2):
             serializer.data
+
+    def test_prefetch_object_is_passed_with_depth(self):
+        class ToppingSerializer(
+            PrefetchingSerializerMixin, serializers.ModelSerializer
+        ):
+            prefetch_related = (
+                Prefetch(
+                    "origin",
+                    queryset=Country.objects.filter(continent__label="Europe"),
+                    to_attr="origin_eu",
+                ),
+            )
+
+            origin_eu = CountrySerializer()
+
+            class Meta:
+                model = Topping
+                fields = ("label", "origin_eu")
+
+        class PizzaSerializer(PrefetchingSerializerMixin, serializers.ModelSerializer):
+            prefetch_related = (
+                Prefetch(
+                    "toppings",
+                    queryset=Topping.objects.filter(
+                        label__in=(
+                            "Provolone",
+                            "Cheddar",
+                            "Parmesan",
+                            "Mozzarella",
+                            "Paneer",
+                        )
+                    ),
+                    to_attr="cheese_toppings",
+                ),
+            )
+
+            cheese_toppings = ToppingSerializer(many=True)
+
+            class Meta:
+                model = Pizza
+                fields = ("label", "cheese_toppings")
+
+        pizza = Pizza.objects.create(
+            label="For this test only.",
+            provenance=Country.objects.create(label="France"),
+        )
+        Topping.objects.get_or_create(
+            label="Parmesan",
+            origin=Country.objects.get_or_create(
+                label="Italy",
+                continent=Continent.objects.get_or_create(label="Europe")[0],
+            )[0],
+            pizza=pizza,
+        )
+        Topping.objects.get_or_create(
+            label="Paneer",
+            origin=Country.objects.get_or_create(
+                label="Some South Asian Country",
+                continent=Continent.objects.get_or_create(label="Asia")[0],
+            )[0],
+            pizza=pizza,
+        )
+
+        pizzas = Pizza.objects.all()
+        serializer = PizzaSerializer(pizzas, many=True)
+
+        with self.assertNumQueries(3):
+            data = serializer.data
+
+        self.assertEqual(
+            data,
+            [
+                {
+                    "label": "Hawaiian",
+                    "cheese_toppings": [],
+                },
+                {
+                    "label": "Pepperoni",
+                    "cheese_toppings": [],
+                },
+                {
+                    "label": "For this test only.",
+                    "cheese_toppings": [
+                        {"label": "Parmesan", "origin_eu": {"label": "Italy"}},
+                        {"label": "Paneer", "origin_eu": None},
+                    ],
+                },
+            ],
+        )
