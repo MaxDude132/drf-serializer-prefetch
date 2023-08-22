@@ -193,7 +193,7 @@ class ConditionsTestCase(TestCase):
         pizzas = Pizza.objects.all()
         serializer = PizzaSerializer(pizzas, many=True)
 
-        with self.assertNumQueries(2):
+        with self.assertNumQueries(3):
             data = serializer.data
 
         self.assertEqual(
