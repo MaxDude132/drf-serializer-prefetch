@@ -164,7 +164,8 @@ class PrefetchingLogicMixin:
             if additional_serializer is None:
                 raise ValueError(
                     _(
-                        "The additional_serializer value is missing the key `serializer`."
+                        "The additional_serializer value is "
+                        "missing the key `serializer`."
                     )
                 )
 
@@ -179,6 +180,18 @@ class PrefetchingLogicMixin:
             prefetch_items.extend(add_to_prefetch)
 
         return select_items, prefetch_items
+
+    def _get_all_prefetch(self, serializer):
+        yield from (
+            p
+            for p in self.get_prefetch_related_data(serializer)
+            if isinstance(p, Prefetch)
+        )
+        yield from (
+            p["relation_and_field"]
+            for p in self.get_additional_serializers_data(serializer)
+            if isinstance(["relation_and_field"], Prefetch)
+        )
 
     def _get_serializer_field_relations(
         self, serializer, current_relation, should_prefetch
@@ -202,7 +215,12 @@ class PrefetchingLogicMixin:
             if not (relation := info.relations.get(source)) or getattr(
                 field, "method_name", None
             ):
-                continue
+                for prefetch in self._get_all_prefetch(serializer):
+                    if prefetch.prefetch_to == source:
+                        relation = info.relations.get(prefetch.prefetch_through)
+                        break
+                else:
+                    continue
 
             if relation.to_many:
                 future_should_prefetch = True
