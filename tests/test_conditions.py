@@ -6,7 +6,12 @@ from rest_framework import serializers
 from serializer_prefetch import PrefetchingSerializerMixin
 
 from tests.models import Continent, Pizza, Topping, Country
-from tests.serializers import PizzaSerializer, ToppingSerializer, CountrySerializer
+from tests.serializers import (
+    ContinentSerializer,
+    PizzaSerializer,
+    ToppingSerializer,
+    CountrySerializer,
+)
 
 
 class ConditionsTestCase(TestCase):
@@ -193,7 +198,7 @@ class ConditionsTestCase(TestCase):
         pizzas = Pizza.objects.all()
         serializer = PizzaSerializer(pizzas, many=True)
 
-        with self.assertNumQueries(3):
+        with self.assertNumQueries(5):
             data = serializer.data
 
         self.assertEqual(
@@ -213,6 +218,111 @@ class ConditionsTestCase(TestCase):
                         {"label": "Parmesan", "origin_eu": {"label": "Italy"}},
                         {"label": "Paneer", "origin_eu": None},
                     ],
+                },
+            ],
+        )
+
+    def test_prefetch_object_is_passed_with_depth_2(self):
+        class CountrySerializer(
+            PrefetchingSerializerMixin, serializers.ModelSerializer
+        ):
+            prefetch_related = (
+                Prefetch(
+                    "continent",
+                    queryset=Continent.objects.filter(label__in=("Europe", "America")),
+                    to_attr="continent_eu",
+                ),
+            )
+
+            continent = ContinentSerializer(source="continent_eu")
+
+            class Meta:
+                model = Country
+                fields = ("label", "continent")
+
+        class ToppingSerializer(
+            PrefetchingSerializerMixin, serializers.ModelSerializer
+        ):
+            prefetch_related = (
+                Prefetch(
+                    "origin",
+                    queryset=Country.objects.filter(continent__label="Europe"),
+                    to_attr="origin_eu",
+                ),
+            )
+
+            origin = CountrySerializer(source="origin_eu")
+
+            class Meta:
+                model = Topping
+                fields = ("label", "origin")
+
+        class PizzaSerializer(PrefetchingSerializerMixin, serializers.ModelSerializer):
+            prefetch_related = ("toppings__origin",)
+
+            toppings = ToppingSerializer(many=True)
+
+            provenance = CountrySerializer()
+
+            class Meta:
+                model = Pizza
+                fields = ("label", "toppings", "provenance")
+
+        pizza = Pizza.objects.create(
+            label="For this test only.",
+            provenance=Country.objects.create(
+                label="France",
+                continent=Continent.objects.get_or_create(label="Mistyped Urope")[0],
+            ),
+        )
+        Topping.objects.get_or_create(
+            label="Parmesan",
+            origin=Country.objects.get_or_create(
+                label="Italy",
+                continent=Continent.objects.get_or_create(label="Europe")[0],
+            )[0],
+            pizza=pizza,
+        )
+        Topping.objects.get_or_create(
+            label="Paneer",
+            origin=Country.objects.get_or_create(
+                label="Some South Asian Country",
+                continent=Continent.objects.get_or_create(label="Asia")[0],
+            )[0],
+            pizza=pizza,
+        )
+        Topping.objects.get_or_create(
+            label="Other Thing",
+            origin=Country.objects.get_or_create(
+                label="Canada",
+                continent=Continent.objects.get_or_create(label="America")[0],
+            )[0],
+            pizza=pizza,
+        )
+
+        pizzas = Pizza.objects.filter(id=pizza.pk)
+        serializer = PizzaSerializer(pizzas, many=True)
+
+        with self.assertNumQueries(10):
+            data = serializer.data
+
+        self.assertEqual(
+            data,
+            [
+                {
+                    "label": "For this test only.",
+                    "toppings": [
+                        {
+                            "label": "Parmesan",
+                            "origin": {
+                                "label": "Italy",
+                                "continent": {"label": "Europe"},
+                            },
+                        },
+                        {"label": "Paneer", "origin": None},
+                        {"label": "Other Thing", "origin": None},
+                    ],
+                    "provenance": {"label": "France", "continent": None},
                 },
             ],
         )

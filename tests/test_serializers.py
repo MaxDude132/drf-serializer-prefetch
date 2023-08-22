@@ -76,6 +76,10 @@ class SerializersTestCase(TestCase):
                 model = Pizza
                 fields = ("label", "toppings", "provenance")
 
+        Topping.objects.create(
+            pizza=self.pepperoni_pizza, label="Mozzarella", origin=self.canada
+        )
+
         pizzas = Pizza.objects.all()
         serializer = PizzaSerializer(pizzas, many=True)
 
@@ -92,7 +96,7 @@ class SerializersTestCase(TestCase):
                 },
                 {
                     "label": "Pepperoni",
-                    "toppings": ["Pepperoni"],
+                    "toppings": ["Pepperoni", "Mozzarella"],
                     "provenance": "USA",
                 },
             ],
@@ -116,7 +120,7 @@ class SerializersTestCase(TestCase):
                 },
                 {
                     "label": "Pepperoni",
-                    "toppings": ["Pepperoni"],
+                    "toppings": ["Pepperoni", "Mozzarella"],
                     "provenance": "USA",
                 },
             ],
@@ -144,7 +148,7 @@ class SerializersTestCase(TestCase):
                 },
                 {
                     "label": "Pepperoni",
-                    "toppings": ["Pepperoni"],
+                    "toppings": ["Pepperoni", "Mozzarella"],
                     "provenance": "USA",
                 },
             ],
@@ -730,7 +734,7 @@ class SerializersTestCase(TestCase):
         pizzas = Pizza.objects.all()
         serializer = PizzaSerializer(pizzas, many=True)
 
-        with self.assertNumQueries(2):
+        with self.assertNumQueries(3):
             data = serializer.data
 
         self.assertEqual(

@@ -114,15 +114,13 @@ class PrefetchingLogicMixin:
     ):
         select_items.extend(return_values[0])
 
-        simple_prefetch = [
-            item.prefetch_through if isinstance(item, Prefetch) else item
+        simple_prefetch_to = [
+            item.prefetch_to if isinstance(item, Prefetch) else item
             for item in prefetch_items
         ]
         for value in return_values[1]:
-            prefetch_through = (
-                value.prefetch_through if isinstance(value, Prefetch) else value
-            )
-            if prefetch_through in simple_prefetch:
+            prefetch_to = value.prefetch_to if isinstance(value, Prefetch) else value
+            if prefetch_to in simple_prefetch_to:
                 continue
 
             prefetch_items.append(value)
@@ -309,6 +307,12 @@ class PrefetchingLogicMixin:
     def _transform_iterable_to_prefetches(self, iterable_items):
         return [self._transform_str_to_prefetch(item) for item in iterable_items]
 
+    def get_ordered_prefetches(self, prefetches):
+        yield from (p for p in prefetches if isinstance(p, Prefetch) and p.queryset)
+        yield from (
+            p for p in prefetches if not isinstance(p, Prefetch) or not p.queryset
+        )
+
 
 class List(list):
     _serializer_prefetch_done = False
@@ -327,9 +331,19 @@ class PrefetchingListSerializer(PrefetchingLogicMixin, serializers.ListSerialize
         child = self.child
         select_items, prefetch_items = self.get_prefetch(child)
 
+        prefetch_has_prefetch_objects = any(
+            isinstance(p, Prefetch) and p.prefetch_to != p.prefetch_through
+            for p in prefetch_items
+        )
+
         if isinstance(instance, QuerySet):
-            instance = instance.select_related(*select_items)
-            instance = instance.prefetch_related(*prefetch_items)
+            instance = instance.prefetch_related(
+                *self.get_ordered_prefetches(prefetch_items)
+            )
+            if not prefetch_has_prefetch_objects:
+                instance = instance.select_related(*select_items)
+            else:
+                instance = instance.prefetch_related(*select_items)
             instance = self.queryset_after_prefetch(instance)
 
         else:
@@ -341,7 +355,7 @@ class PrefetchingListSerializer(PrefetchingLogicMixin, serializers.ListSerialize
                     )
                 )
 
-            for related_lookup in set(select_items + prefetch_items):
+            for related_lookup in select_items + prefetch_items:
                 prefetch_related_objects(instance, related_lookup)
 
         if isinstance(instance, list):
@@ -371,7 +385,9 @@ class PrefetchingSerializerMixin(PrefetchingLogicMixin):
         ):
             select_items, prefetch_items = self.get_prefetch(self)
 
-            for related_lookup in set(select_items + prefetch_items):
+            for related_lookup in (
+                list(self.get_ordered_prefetches(prefetch_items)) + select_items
+            ):
                 try:
                     prefetch_related_objects([instance], related_lookup)
                 except AttributeError as exc:

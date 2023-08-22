@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 from serializer_prefetch import PrefetchingSerializerMixin
 
-from tests.models import Pizza, Topping, Country
+from tests.models import Continent, Pizza, Topping, Country
 
 
 class ToppingSerializer(PrefetchingSerializerMixin, serializers.ModelSerializer):
@@ -14,6 +14,12 @@ class ToppingSerializer(PrefetchingSerializerMixin, serializers.ModelSerializer)
 class CountrySerializer(PrefetchingSerializerMixin, serializers.ModelSerializer):
     class Meta:
         model = Country
+        fields = ("label",)
+
+
+class ContinentSerializer(PrefetchingSerializerMixin, serializers.ModelSerializer):
+    class Meta:
+        model = Continent
         fields = ("label",)
 
 
