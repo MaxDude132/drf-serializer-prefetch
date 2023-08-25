@@ -198,6 +198,10 @@ class SomeSerializer(PrefetchingSerializerMixin, serializer.ModelSerializer):
 
 **IMPORTANT NOTE**: Because of an issue with Django, behaviour could be inconsistant when using to_attr with Prefetch objects. For more information, see: https://code.djangoproject.com/ticket/34791
 
+---
+
+As of version 1.1.3, it is now possible to set a new parameter called `force_prefetch` on the serializer. This parameter allows forcing a parameter that would otherwise be in the select_related to be in the prefetch_related. This can be useful when the join time would be longer than just fetching those objects, for instance in the case where there are only 2 or 3 objects to be fetched in total. In certain situations, it is faster to prefetch than to select, so this allows more control over the method used.
+
 ## Special cases
 
 There are a few situations where you might want to be able to customize the behaviour more. Here are some of the ways you can tweak the Prefetching Serializer to fit the needs of your project.
