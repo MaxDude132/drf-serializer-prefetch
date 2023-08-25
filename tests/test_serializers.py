@@ -83,7 +83,7 @@ class SerializersTestCase(TestCase):
         pizzas = Pizza.objects.all()
         serializer = PizzaSerializer(pizzas, many=True)
 
-        with self.assertNumQueries(3):
+        with self.assertNumQueries(5):
             data = serializer.data
 
         self.assertEqual(
@@ -734,7 +734,7 @@ class SerializersTestCase(TestCase):
         pizzas = Pizza.objects.all()
         serializer = PizzaSerializer(pizzas, many=True)
 
-        with self.assertNumQueries(3):
+        with self.assertNumQueries(2):
             data = serializer.data
 
         self.assertEqual(
@@ -819,6 +819,78 @@ class SerializersTestCase(TestCase):
                 {
                     "label": "Pepperoni",
                     "toppings": [{"label": "Pepperoni", "origin": "USA"}],
+                },
+            ],
+        )
+
+    def test_force_prefetch(self):
+        class PizzaSerializer(PrefetchingSerializerMixin, serializers.ModelSerializer):
+            provenance = CountrySerializer()
+
+            class Meta:
+                model = Pizza
+                fields = ("label", "provenance")
+
+        pizzas = Pizza.objects.all()
+        serializer = PizzaSerializer(pizzas, many=True)
+
+        with self.assertNumQueries(1):
+            data = serializer.data
+
+        self.assertEqual(
+            data,
+            [
+                {
+                    "label": "Hawaiian",
+                    "provenance": {"label": "Canada"},
+                },
+                {
+                    "label": "Pepperoni",
+                    "provenance": {"label": "USA"},
+                },
+            ],
+        )
+
+        PizzaSerializer.force_prefetch = ("provenance",)
+
+        pizzas = Pizza.objects.all()
+        serializer = PizzaSerializer(pizzas, many=True)
+
+        with self.assertNumQueries(2):
+            data = serializer.data
+
+        self.assertEqual(
+            data,
+            [
+                {
+                    "label": "Hawaiian",
+                    "provenance": {"label": "Canada"},
+                },
+                {
+                    "label": "Pepperoni",
+                    "provenance": {"label": "USA"},
+                },
+            ],
+        )
+
+        PizzaSerializer.select_related = ("provenance",)
+
+        pizzas = Pizza.objects.all()
+        serializer = PizzaSerializer(pizzas, many=True)
+
+        with self.assertNumQueries(2):
+            data = serializer.data
+
+        self.assertEqual(
+            data,
+            [
+                {
+                    "label": "Hawaiian",
+                    "provenance": {"label": "Canada"},
+                },
+                {
+                    "label": "Pepperoni",
+                    "provenance": {"label": "USA"},
                 },
             ],
         )

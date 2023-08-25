@@ -36,6 +36,12 @@ class PrefetchingLogicMixin:
 
         return getattr(serializer, "additional_serializers", [])
 
+    def get_force_prefetch_data(self, serializer):
+        if hasattr(serializer, "get_force_prefetch"):
+            return serializer.get_force_prefetch()
+
+        return getattr(serializer, "force_prefetch", [])
+
     def other_prefetching(self):
         """
         Override this method to add additional prefetching that
@@ -83,8 +89,9 @@ class PrefetchingLogicMixin:
         if hasattr(serializer, "child"):
             serializer = serializer.child
 
+        force_prefetch = self.get_force_prefetch_data(serializer)
         select_items, prefetch_items = self._get_custom_relations(
-            serializer, current_relation
+            serializer, current_relation, force_prefetch=force_prefetch
         )
         self._extend_relation_items(
             select_items,
@@ -127,9 +134,16 @@ class PrefetchingLogicMixin:
 
         return select_items, prefetch_items
 
-    def _get_custom_relations(self, serializer, current_relation):
-        select_related_attr = self.get_select_related_data(serializer)
+    def _get_custom_relations(self, serializer, current_relation, *, force_prefetch=()):
+        select_related_attr = []
+        temp_select_related_attr = self.get_select_related_data(serializer)
         prefetch_related_attr = self.get_prefetch_related_data(serializer)
+
+        for select in temp_select_related_attr:
+            if select in force_prefetch:
+                prefetch_related_attr.append(select)
+            else:
+                select_related_attr.append(select)
 
         custom_select_related = (
             self._get_custom_related(select_related_attr, current_relation) or []
@@ -202,6 +216,7 @@ class PrefetchingLogicMixin:
             return select_items, prefetch_items
 
         info = model_meta.get_field_info(model)
+        force_prefetch = self.get_force_prefetch_data(serializer)
 
         for field in serializer.fields.values():
             if field.write_only:
@@ -223,7 +238,11 @@ class PrefetchingLogicMixin:
             if relation.to_many:
                 future_should_prefetch = True
 
-            append_to = prefetch_items if future_should_prefetch else select_items
+            append_to = (
+                prefetch_items
+                if future_should_prefetch or source in force_prefetch
+                else select_items
+            )
 
             if should_prefetch:
                 source = Prefetch(source)
@@ -331,19 +350,10 @@ class PrefetchingListSerializer(PrefetchingLogicMixin, serializers.ListSerialize
         child = self.child
         select_items, prefetch_items = self.get_prefetch(child)
 
-        prefetch_has_prefetch_objects = any(
-            isinstance(p, Prefetch) and p.prefetch_to != p.prefetch_through
-            for p in prefetch_items
-        )
-
         if isinstance(instance, QuerySet):
-            instance = instance.prefetch_related(
-                *self.get_ordered_prefetches(prefetch_items)
-            )
-            if not prefetch_has_prefetch_objects:
+            if select_items:
                 instance = instance.select_related(*select_items)
-            else:
-                instance = instance.prefetch_related(*select_items)
+            instance = instance.prefetch_related(*prefetch_items)
             instance = self.queryset_after_prefetch(instance)
 
         else:
@@ -385,9 +395,7 @@ class PrefetchingSerializerMixin(PrefetchingLogicMixin):
         ):
             select_items, prefetch_items = self.get_prefetch(self)
 
-            for related_lookup in (
-                list(self.get_ordered_prefetches(prefetch_items)) + select_items
-            ):
+            for related_lookup in select_items + prefetch_items:
                 try:
                     prefetch_related_objects([instance], related_lookup)
                 except AttributeError as exc:
