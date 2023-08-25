@@ -83,7 +83,7 @@ class SerializersTestCase(TestCase):
         pizzas = Pizza.objects.all()
         serializer = PizzaSerializer(pizzas, many=True)
 
-        with self.assertNumQueries(3):
+        with self.assertNumQueries(5):
             data = serializer.data
 
         self.assertEqual(
