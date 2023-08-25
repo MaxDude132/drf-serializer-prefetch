@@ -160,7 +160,7 @@ from serializer_prefetch import PrefetchingSerializerMixin
 
 
 class SomeSerializer(PrefetchingSerializerMixin, serializer.ModelSerializer):
-    select_related = (Prefetch('other_field', queryset=OtherField.objects.filter(some_data='some_value'), to_attr='other_field_filtered'),)
+    prefetch_related = (Prefetch('other_field', queryset=OtherField.objects.filter(some_data='some_value'), to_attr='other_field_filtered'),)
 
     other_field_filtered = serializers.ListField(child=serializers.CharField())
 
@@ -182,7 +182,7 @@ from serializer_prefetch import PrefetchingSerializerMixin
 
 
 class SomeSerializer(PrefetchingSerializerMixin, serializer.ModelSerializer):
-    select_related = (Prefetch('other_field', queryset=OtherField.objects.filter(some_data='some_value'), to_attr='other_field_filtered'),)
+    prefetch_related = (Prefetch('other_field', queryset=OtherField.objects.filter(some_data='some_value'), to_attr='other_field_filtered'),)
 
     other_field_filtered = OtherFieldSerializer(many=True)
 
@@ -195,6 +195,8 @@ class SomeSerializer(PrefetchingSerializerMixin, serializer.ModelSerializer):
             'defined',
         )
 ```
+
+**IMPORTANT NOTE**: Because of an issue with Django, behaviour could be inconsistant when using to_attr with Prefetch objects. For more information, see: https://code.djangoproject.com/ticket/34791
 
 ## Special cases
 
