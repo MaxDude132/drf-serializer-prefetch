@@ -1,12 +1,10 @@
 import copy
-from contextlib import suppress
 from collections.abc import Iterable
 
 from django.db.models import Model, QuerySet, prefetch_related_objects, Prefetch
 from django.utils.translation import gettext as _
 from rest_framework.fields import empty
 from rest_framework import serializers
-from rest_framework.utils import model_meta
 
 
 class PrefetchingLogicMixin:
