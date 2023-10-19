@@ -1,3 +1,4 @@
+from unittest import skip
 from django.db.models import Prefetch
 from django.test import TestCase
 
@@ -220,6 +221,7 @@ class ConditionsTestCase(TestCase):
             ],
         )
 
+    @skip("This test only passes on Django 5.0 and above. Unskip when it's released")
     def test_prefetch_object_is_passed_with_depth_2(self):
         pizza = Pizza.objects.create(
             label="For this test only.",
