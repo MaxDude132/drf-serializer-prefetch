@@ -274,13 +274,6 @@ class PrefetchingLogicMixin:
 
         return computed_related
 
-    def _get_model_from_serializer(self, serializer):
-        with suppress(AttributeError):
-            return serializer.Meta.model
-
-        with suppress(AttributeError):
-            return serializer.child.Meta.model
-
     @staticmethod
     def _get_joined_prefetch(current_relation: Prefetch | str, item: Prefetch | str):
         if isinstance(item, str):
