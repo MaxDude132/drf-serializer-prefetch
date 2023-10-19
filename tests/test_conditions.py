@@ -1,12 +1,16 @@
+# Standard libraries
 from unittest import skip
+
+# Django
 from django.db.models import Prefetch
 from django.test import TestCase
 
+# Rest Framework
 from rest_framework import serializers
 
+# drf-serializer-prefetch
 from serializer_prefetch import PrefetchingSerializerMixin
-
-from tests.models import Continent, Pizza, Topping, Country
+from tests.models import Continent, Country, Pizza, Topping
 from tests.serializers import (
     ContinentSerializer,
     CountrySerializer,

@@ -1,7 +1,9 @@
 #!/usr/bin/env python
+# Standard libraries
 import os
 import sys
 
+# Django
 from django.core.management import execute_from_command_line
 
 

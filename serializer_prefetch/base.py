@@ -1,10 +1,14 @@
+# Standard libraries
 import copy
 from collections.abc import Iterable
 
-from django.db.models import Model, QuerySet, prefetch_related_objects, Prefetch
+# Django
+from django.db.models import Model, Prefetch, QuerySet, prefetch_related_objects
 from django.utils.translation import gettext as _
-from rest_framework.fields import empty
+
+# Rest Framework
 from rest_framework import serializers
+from rest_framework.fields import empty
 
 
 class PrefetchingLogicMixin:
