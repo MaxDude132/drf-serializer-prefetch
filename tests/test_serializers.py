@@ -1,12 +1,14 @@
+# Django
 from django.db.models import Prefetch
 from django.test import TestCase
 
+# Rest Framework
 from rest_framework import serializers
 
+# drf-serializer-prefetch
 from serializer_prefetch import PrefetchingSerializerMixin
-
-from tests.models import Pizza, Topping, Country, Continent
-from tests.serializers import PizzaSerializer, ToppingSerializer, CountrySerializer
+from tests.models import Continent, Country, Pizza, Topping
+from tests.serializers import CountrySerializer, PizzaSerializer, ToppingSerializer
 
 
 class SerializersTestCase(TestCase):

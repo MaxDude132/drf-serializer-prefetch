@@ -1,6 +1,8 @@
+# Standard libraries
 from pathlib import Path
-from setuptools import setup, find_packages
 
+# drf-serializer-prefetch
+from setuptools import find_packages, setup
 
 VERSION = "1.1.3"
 DESCRIPTION = "An automatic prefetcher for django-rest-framework."

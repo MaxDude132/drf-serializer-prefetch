@@ -1,8 +1,9 @@
+# Rest Framework
 from rest_framework import serializers
 
+# drf-serializer-prefetch
 from serializer_prefetch import PrefetchingSerializerMixin
-
-from tests.models import Continent, Pizza, Topping, Country
+from tests.models import Continent, Country, Pizza, Topping
 
 
 class ToppingSerializer(PrefetchingSerializerMixin, serializers.ModelSerializer):

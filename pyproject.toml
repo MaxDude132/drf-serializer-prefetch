@@ -1,0 +1,24 @@
+[tool.isort]
+profile = "black"
+include_trailing_comma = true
+
+known_future_library = ["future", "__future__"]
+known_django = ["django"]
+import_heading_stdlib = "Standard libraries"
+import_heading_django = "Django"
+known_restframework = ["rest_framework"]
+import_heading_future = "Future"
+import_heading_restframework = "Rest Framework"
+import_heading_thirdparty = "Third party"
+import_heading_firstparty = "drf-serializer-prefetch"
+import_heading_localfolder = "Local"
+default_section = "FIRSTPARTY"
+sections = [
+  "FUTURE",
+  "STDLIB",
+  "DJANGO",
+  "RESTFRAMEWORK",
+  "THIRDPARTY",
+  "FIRSTPARTY",
+  "LOCALFOLDER",
+]
