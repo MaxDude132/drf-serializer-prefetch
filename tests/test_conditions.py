@@ -1,5 +1,5 @@
 # Standard libraries
-from unittest import skip
+# from unittest import skip
 
 # Django
 from django.db.models import Prefetch
@@ -12,7 +12,7 @@ from rest_framework import serializers
 from serializer_prefetch import PrefetchingSerializerMixin
 from tests.models import Continent, Country, Pizza, Topping
 from tests.serializers import (
-    ContinentSerializer,
+    # ContinentSerializer,
     CountrySerializer,
     PizzaSerializer,
     ToppingSerializer,
@@ -225,115 +225,115 @@ class ConditionsTestCase(TestCase):
             ],
         )
 
-    @skip("This test only passes on Django 5.0 and above. Unskip when it's released")
-    def test_prefetch_object_is_passed_with_depth_2(self):
-        pizza = Pizza.objects.create(
-            label="For this test only.",
-            provenance=Country.objects.create(
-                label="France",
-                continent=Continent.objects.get_or_create(label="Mistyped Urope")[0],
-            ),
-        )
-        Topping.objects.get_or_create(
-            label="Parmesan",
-            origin=Country.objects.get_or_create(
-                label="Italy",
-                continent=Continent.objects.get_or_create(label="Europe")[0],
-            )[0],
-            pizza=pizza,
-        )
-        Topping.objects.get_or_create(
-            label="Paneer",
-            origin=Country.objects.get_or_create(
-                label="Some South Asian Country",
-                continent=Continent.objects.get_or_create(label="Asia")[0],
-            )[0],
-            pizza=pizza,
-        )
-        Topping.objects.get_or_create(
-            label="Other Thing",
-            origin=Country.objects.get_or_create(
-                label="Canada",
-                continent=Continent.objects.get_or_create(label="America")[0],
-            )[0],
-            pizza=pizza,
-        )
+    # @skip("This test only passes on Django 5.0 and above. Unskip when it's released")
+    # def test_prefetch_object_is_passed_with_depth_2(self):
+    #     pizza = Pizza.objects.create(
+    #         label="For this test only.",
+    #         provenance=Country.objects.create(
+    #             label="France",
+    #             continent=Continent.objects.get_or_create(label="Mistyped Urope")[0],
+    #         ),
+    #     )
+    #     Topping.objects.get_or_create(
+    #         label="Parmesan",
+    #         origin=Country.objects.get_or_create(
+    #             label="Italy",
+    #             continent=Continent.objects.get_or_create(label="Europe")[0],
+    #         )[0],
+    #         pizza=pizza,
+    #     )
+    #     Topping.objects.get_or_create(
+    #         label="Paneer",
+    #         origin=Country.objects.get_or_create(
+    #             label="Some South Asian Country",
+    #             continent=Continent.objects.get_or_create(label="Asia")[0],
+    #         )[0],
+    #         pizza=pizza,
+    #     )
+    #     Topping.objects.get_or_create(
+    #         label="Other Thing",
+    #         origin=Country.objects.get_or_create(
+    #             label="Canada",
+    #             continent=Continent.objects.get_or_create(label="America")[0],
+    #         )[0],
+    #         pizza=pizza,
+    #     )
 
-        class CountrySerializer(
-            PrefetchingSerializerMixin, serializers.ModelSerializer
-        ):
-            prefetch_related = (
-                Prefetch(
-                    "continent",
-                    queryset=Continent.objects.filter(
-                        label__in=("Europe", "America")
-                    ),  # noqa: E501
-                    to_attr="continent_eu",
-                ),
-            )
+    #     class CountrySerializer(
+    #         PrefetchingSerializerMixin, serializers.ModelSerializer
+    #     ):
+    #         prefetch_related = (
+    #             Prefetch(
+    #                 "continent",
+    #                 queryset=Continent.objects.filter(
+    #                     label__in=("Europe", "America")
+    #                 ),  # noqa: E501
+    #                 to_attr="continent_eu",
+    #             ),
+    #         )
 
-            continent = ContinentSerializer(source="continent_eu")
+    #         continent = ContinentSerializer(source="continent_eu")
 
-            class Meta:
-                model = Country
-                fields = ("label", "continent")
+    #         class Meta:
+    #             model = Country
+    #             fields = ("label", "continent")
 
-        class ToppingSerializer(
-            PrefetchingSerializerMixin, serializers.ModelSerializer
-        ):
-            prefetch_related = (
-                Prefetch(
-                    "origin",
-                    queryset=Country.objects.filter(continent__label="Europe"),
-                    to_attr="origin_eu",
-                ),
-            )
+    #     class ToppingSerializer(
+    #         PrefetchingSerializerMixin, serializers.ModelSerializer
+    #     ):
+    #         prefetch_related = (
+    #             Prefetch(
+    #                 "origin",
+    #                 queryset=Country.objects.filter(continent__label="Europe"),
+    #                 to_attr="origin_eu",
+    #             ),
+    #         )
 
-            origin = CountrySerializer(source="origin_eu")
+    #         origin = CountrySerializer(source="origin_eu")
 
-            class Meta:
-                model = Topping
-                fields = ("label", "origin")
+    #         class Meta:
+    #             model = Topping
+    #             fields = ("label", "origin")
 
-        class PizzaSerializer(
-            PrefetchingSerializerMixin, serializers.ModelSerializer
-        ):  # noqa: E501
-            prefetch_related = ("toppings__origin",)
+    #     class PizzaSerializer(
+    #         PrefetchingSerializerMixin, serializers.ModelSerializer
+    #     ):  # noqa: E501
+    #         prefetch_related = ("toppings__origin",)
 
-            toppings = ToppingSerializer(many=True)
+    #         toppings = ToppingSerializer(many=True)
 
-            provenance = CountrySerializer()
+    #         provenance = CountrySerializer()
 
-            class Meta:
-                model = Pizza
-                fields = ("label", "toppings", "provenance")
+    #         class Meta:
+    #             model = Pizza
+    #             fields = ("label", "toppings", "provenance")
 
-        pizzas = Pizza.objects.filter(id=pizza.pk)
-        serializer = PizzaSerializer(pizzas, many=True)
+    #     pizzas = Pizza.objects.filter(id=pizza.pk)
+    #     serializer = PizzaSerializer(pizzas, many=True)
 
-        with self.assertNumQueries(6):
-            data = serializer.data
+    #     with self.assertNumQueries(6):
+    #         data = serializer.data
 
-        self.assertEqual(
-            data,
-            [
-                {
-                    "label": "For this test only.",
-                    "toppings": [
-                        {
-                            "label": "Parmesan",
-                            "origin": {
-                                "label": "Italy",
-                                "continent": {"label": "Europe"},
-                            },
-                        },
-                        {"label": "Paneer", "origin": None},
-                        {"label": "Other Thing", "origin": None},
-                    ],
-                    "provenance": {"label": "France", "continent": None},
-                },
-            ],
-        )
+    #     self.assertEqual(
+    #         data,
+    #         [
+    #             {
+    #                 "label": "For this test only.",
+    #                 "toppings": [
+    #                     {
+    #                         "label": "Parmesan",
+    #                         "origin": {
+    #                             "label": "Italy",
+    #                             "continent": {"label": "Europe"},
+    #                         },
+    #                     },
+    #                     {"label": "Paneer", "origin": None},
+    #                     {"label": "Other Thing", "origin": None},
+    #                 ],
+    #                 "provenance": {"label": "France", "continent": None},
+    #             },
+    #         ],
+    #     )
 
     def test_with_pagination(self):
         # Pagination returns a list instead of a Queryset
