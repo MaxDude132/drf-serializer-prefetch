@@ -1,6 +1,6 @@
+import copy
 from contextlib import suppress
 from collections.abc import Iterable
-import copy
 
 from django.db.models import Model, QuerySet, prefetch_related_objects, Prefetch
 from django.utils.translation import gettext as _
@@ -193,59 +193,60 @@ class PrefetchingLogicMixin:
 
         return select_items, prefetch_items
 
-    def _get_all_prefetch(self, serializer):
+    def _get_all_prefetch_with_to_attr(self, serializer):
         yield from (
             p
             for p in self.get_prefetch_related_data(serializer)
-            if isinstance(p, Prefetch)
+            if isinstance(p, Prefetch) and p.prefetch_to != p.prefetch_through
         )
         yield from (
             p["relation_and_field"]
             for p in self.get_additional_serializers_data(serializer)
-            if isinstance(["relation_and_field"], Prefetch)
+            if isinstance(p["relation_and_field"], Prefetch)
+            and p["relation_and_field"].prefetch_to
+            != p["relation_and_field"].prefetch_through
         )
 
-    def _get_serializer_field_relations(
-        self, serializer, current_relation, should_prefetch
-    ):
-        select_items = []
-        prefetch_items = []
-
-        model = self._get_model_from_serializer(serializer)
-        if model is None:
-            return select_items, prefetch_items
-
-        info = model_meta.get_field_info(model)
-        force_prefetch = self.get_force_prefetch_data(serializer)
-
+    def _get_fields(self, serializer: serializers.Field):
         for field in serializer.fields.values():
             if field.write_only:
                 continue
 
-            future_should_prefetch = should_prefetch
+            if not isinstance(field, serializers.BaseSerializer):
+                continue
+
+            yield field
+
+    def _get_serializer_field_relations(
+        self,
+        serializer: serializers.Field,
+        current_relation,
+        should_prefetch,
+    ):
+        select_items = []
+        prefetch_items = []
+
+        force_prefetch = self.get_force_prefetch_data(serializer)
+
+        for field in self._get_fields(serializer):
+            future_should_prefetch = should_prefetch or isinstance(
+                field, serializers.ListSerializer
+            )
+
             source = field.source
-
-            if not (relation := info.relations.get(source)) or getattr(
-                field, "method_name", None
-            ):
-                for prefetch in self._get_all_prefetch(serializer):
-                    if prefetch.prefetch_to == source:
-                        relation = info.relations.get(prefetch.prefetch_through)
-                        break
-                else:
-                    continue
-
-            if relation.to_many:
-                future_should_prefetch = True
+            # If the source is in the prefetch with a to_attr, then
+            # we cannot select it, it must be prefetched, as select_related
+            # does not support Prefetch objects.
+            for prefetch in self._get_all_prefetch_with_to_attr(serializer):
+                if prefetch.prefetch_to == source:
+                    future_should_prefetch = True
+                    break
 
             append_to = (
                 prefetch_items
                 if future_should_prefetch or source in force_prefetch
                 else select_items
             )
-
-            if should_prefetch:
-                source = Prefetch(source)
 
             if current_relation:
                 source = self._get_joined_prefetch(current_relation, source)
@@ -325,12 +326,6 @@ class PrefetchingLogicMixin:
 
     def _transform_iterable_to_prefetches(self, iterable_items):
         return [self._transform_str_to_prefetch(item) for item in iterable_items]
-
-    def get_ordered_prefetches(self, prefetches):
-        yield from (p for p in prefetches if isinstance(p, Prefetch) and p.queryset)
-        yield from (
-            p for p in prefetches if not isinstance(p, Prefetch) or not p.queryset
-        )
 
 
 class List(list):
