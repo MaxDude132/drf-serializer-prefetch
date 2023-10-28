@@ -253,16 +253,23 @@ class PrefetchingLogicMixin:
             if current_relation:
                 source = self._get_joined_prefetch(current_relation, source)
 
-            append_to.append(source)
-
             add_to_select, add_to_prefetch = self.get_prefetch(
                 field,
                 current_relation=source,
                 should_prefetch=future_should_prefetch,
             )
 
-            select_items.extend(add_to_select)
-            prefetch_items.extend(add_to_prefetch)
+            meta = (
+                getattr(field.child, "Meta", None)
+                if isinstance(field, serializers.ListSerializer)
+                else getattr(field, "Meta", None)
+            )
+            if meta:
+                model = getattr(meta, "model", None)
+            if meta and model:
+                append_to.append(source)
+                select_items.extend(add_to_select)
+                prefetch_items.extend(add_to_prefetch)
 
         return select_items, prefetch_items
 

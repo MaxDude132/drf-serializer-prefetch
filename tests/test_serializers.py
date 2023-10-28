@@ -896,3 +896,30 @@ class SerializersTestCase(TestCase):
                 },
             ],
         )
+
+    def test_non_model_serializer_not_prefetched(self):
+        class ExtraDataSerializer(serializers.Serializer):
+            label = serializers.CharField()
+
+        class PizzaSerializer(PrefetchingSerializerMixin, serializers.ModelSerializer):
+            extra_data = ExtraDataSerializer()
+
+            class Meta:
+                model = Pizza
+                fields = ("label", "extra_data")
+
+        Pizza.objects.create(
+            label="Margherita",
+            extra_data={"label": "Margherita"},
+            provenance=self.canada,
+        )
+        pizzas = Pizza.objects.filter(label="Margherita")
+        serializer = PizzaSerializer(pizzas, many=True)
+
+        with self.assertNumQueries(1):
+            data = serializer.data
+
+        self.assertEqual(
+            data,
+            [{"label": "Margherita", "extra_data": {"label": "Margherita"}}],
+        )

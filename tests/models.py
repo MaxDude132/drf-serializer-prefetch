@@ -15,6 +15,8 @@ class Pizza(models.Model):
     label = models.CharField(max_length=50)
     provenance = models.ForeignKey(Country, on_delete=models.CASCADE)
 
+    extra_data = models.JSONField(null=True)
+
 
 class Topping(models.Model):
     pizza = models.ForeignKey(Pizza, on_delete=models.CASCADE, related_name="toppings")
