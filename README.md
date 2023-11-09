@@ -196,7 +196,7 @@ class SomeSerializer(PrefetchingSerializerMixin, serializer.ModelSerializer):
         )
 ```
 
-**IMPORTANT NOTE**: Because of an issue with Django, behaviour could be inconsistant when using to_attr with Prefetch objects. For more information, see: https://code.djangoproject.com/ticket/34791
+**IMPORTANT NOTE**: Because of an issue with Django, behaviour could be inconsistant when using to_attr with Prefetch objects. For more information, see: <https://code.djangoproject.com/ticket/34791>
 
 ----
 

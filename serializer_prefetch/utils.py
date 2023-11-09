@@ -64,13 +64,6 @@ def get_custom_related(related_attr, current_relation=None):
     return computed_related
 
 
-def transform_str_to_prefetch(item):
-    if isinstance(item, str):
-        return Prefetch(item)
-
-    return item
-
-
 def get_model_from_serializer(serializer):
     with suppress(AttributeError):
         return serializer.Meta.model

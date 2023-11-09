@@ -375,3 +375,19 @@ class ConditionsTestCase(TestCase):
 
         with self.assertNumQueries(1):
             serializer.data
+
+        # Passing a wrong prefetch_source should raise a ValueError
+        class PizzaSerializer(PrefetchingSerializerMixin, serializers.ModelSerializer):
+            provenance = CountrySerializer(
+                source="provenance_", prefetch_source="wrong_source"
+            )
+
+            class Meta:
+                model = Pizza
+                fields = ("label", "provenance")
+
+        pizzas = list(Pizza.objects.all())
+        serializer = PizzaSerializer(pizzas, many=True)
+
+        with self.assertRaises(ValueError):
+            serializer.data

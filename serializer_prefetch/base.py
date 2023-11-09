@@ -254,7 +254,14 @@ class PrefetchingLogicMixin:
             if not is_prefetch_object and not is_model_field(model, source):
                 if getattr(field, "_prefetch_source", None):
                     raise ValueError(
-                        _('The field "{}" is not a model field.').format(source)
+                        _(
+                            'The prefetch_source "{}" is not a valid value for '
+                            "field {} on serializer {}."
+                        ).format(
+                            source,
+                            field.source,
+                            serializer.__class__.__name__,
+                        )
                     )
 
                 continue
