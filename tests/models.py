@@ -15,6 +15,14 @@ class Pizza(models.Model):
     label = models.CharField(max_length=50)
     provenance = models.ForeignKey(Country, on_delete=models.CASCADE)
 
+    def get_provenance(self):
+        return self.provenance
+
+    def set_provenance(self, value):
+        self.provenance = value
+
+    provenance_ = property(get_provenance, set_provenance)
+
     extra_data = models.JSONField(null=True)
 
 

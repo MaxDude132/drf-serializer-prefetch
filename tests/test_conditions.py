@@ -344,3 +344,34 @@ class ConditionsTestCase(TestCase):
 
         with self.assertNumQueries(2):
             serializer.data
+
+    def test_property_properly_handled(self):
+        class PizzaSerializer(PrefetchingSerializerMixin, serializers.ModelSerializer):
+            provenance = CountrySerializer(source="provenance_")
+
+            class Meta:
+                model = Pizza
+                fields = ("label", "provenance")
+
+        pizzas = list(Pizza.objects.all())
+        serializer = PizzaSerializer(pizzas, many=True)
+
+        with self.assertNumQueries(2):
+            serializer.data
+
+        # If we pass the prefetch_source key, we can tell it where the property
+        # fetches the data from
+        class PizzaSerializer(PrefetchingSerializerMixin, serializers.ModelSerializer):
+            provenance = CountrySerializer(
+                source="provenance_", prefetch_source="provenance"
+            )
+
+            class Meta:
+                model = Pizza
+                fields = ("label", "provenance")
+
+        pizzas = list(Pizza.objects.all())
+        serializer = PizzaSerializer(pizzas, many=True)
+
+        with self.assertNumQueries(1):
+            serializer.data
