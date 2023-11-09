@@ -141,7 +141,7 @@ class PrefetchingLogicMixin:
     def _get_custom_relations(self, serializer, current_relation, *, force_prefetch=()):
         select_related_attr = []
         temp_select_related_attr = self.get_select_related_data(serializer)
-        prefetch_related_attr = self.get_prefetch_related_data(serializer)
+        prefetch_related_attr = list(self.get_prefetch_related_data(serializer))
 
         for select in temp_select_related_attr:
             if select in force_prefetch:
