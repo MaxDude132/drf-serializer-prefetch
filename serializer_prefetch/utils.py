@@ -25,7 +25,7 @@ def join_prefetch(current_relation: Prefetch | str, item: Prefetch | str):
             (
                 current_relation
                 if isinstance(current_relation, str)
-                else current_relation.prefetch_through,
+                else current_relation.prefetch_to,
                 item,
             )
         )
@@ -69,6 +69,7 @@ def transform_str_to_prefetch(item):
         return Prefetch(item)
 
     return item
+
 
 def get_model_from_serializer(serializer):
     with suppress(AttributeError):
