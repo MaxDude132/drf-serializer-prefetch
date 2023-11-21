@@ -216,7 +216,11 @@ class PrefetchingLogicMixin:
             if field.write_only:
                 continue
 
-            if not isinstance(field, serializers.BaseSerializer):
+            child = getattr(field, "child", None)
+
+            if not isinstance(field, serializers.BaseSerializer) and not isinstance(
+                child, serializers.BaseSerializer
+            ):
                 continue
 
             yield field
@@ -233,9 +237,7 @@ class PrefetchingLogicMixin:
         force_prefetch = self.get_force_prefetch_data(serializer)
 
         for field in self._get_fields(serializer):
-            future_should_prefetch = should_prefetch or isinstance(
-                field, serializers.ListSerializer
-            )
+            future_should_prefetch = should_prefetch or hasattr(field, "child")
 
             source = getattr(field, "_prefetch_source", None) or field.source
 
@@ -283,7 +285,7 @@ class PrefetchingLogicMixin:
 
             meta = (
                 getattr(field.child, "Meta", None)
-                if isinstance(field, serializers.ListSerializer)
+                if hasattr(field, "child")
                 else getattr(field, "Meta", None)
             )
             if meta:
