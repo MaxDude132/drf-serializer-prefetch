@@ -923,3 +923,24 @@ class SerializersTestCase(TestCase):
             data,
             [{"label": "Margherita", "extra_data": {"label": "Margherita"}}],
         )
+
+    def test_dict_serializer(self):
+        class ToppingDictSerializer(serializers.DictField):
+            child = ToppingSerializer()
+
+            def to_representation(self, value):
+                value = {obj.label: ToppingSerializer(obj).data for obj in value.all()}
+                return super().to_representation(value)
+
+        class PizzaSerializer(PrefetchingSerializerMixin, serializers.ModelSerializer):
+            toppings = ToppingDictSerializer()
+
+            class Meta:
+                model = Pizza
+                fields = ("label", "toppings")
+
+        pizzas = Pizza.objects.all()
+        serializer = PizzaSerializer(pizzas, many=True)
+
+        with self.assertNumQueries(2):
+            serializer.data
