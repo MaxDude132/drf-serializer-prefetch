@@ -22,3 +22,18 @@ sections = [
   "FIRSTPARTY",
   "LOCALFOLDER",
 ]
+
+[tool.mypy]
+python_version = 3.9
+plugins = ["mypy_django_plugin.main", "mypy_drf_plugin.main"]
+disallow_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+ignore_errors = true
+
+[tool.django-stubs]
+django_settings_module = "tests.settings"
+
+[tool.ruff]
+ignore = ["E501"]
