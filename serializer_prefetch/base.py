@@ -1,7 +1,7 @@
 # Standard libraries
 from __future__ import annotations
 from collections.abc import Iterable
-from typing import Any, Callable, Generator, cast
+from typing import Any, Callable, Generator, Mapping, cast
 
 # Django
 from django.db.models import Model, Prefetch, QuerySet, prefetch_related_objects
@@ -401,6 +401,11 @@ class PrefetchingSerializerMixin(PrefetchingLogicMixin):
             and not getattr(instance, "_prefetched_objects_cache", None)
         ):
             select_items, prefetch_items = self.get_prefetch(self)  # type: ignore
+
+            if isinstance(instance, Iterable) and not isinstance(instance, Mapping):
+                raise ValueError(
+                    _("instance is an Iterable. Pass `many=True` to the serializer.")
+                )
 
             if isinstance(instance, Model):
                 try:
