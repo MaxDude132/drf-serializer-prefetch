@@ -1,5 +1,7 @@
 # Standard libraries
+from __future__ import annotations
 from collections.abc import Iterable
+from typing import Any, Callable, Generator, cast
 
 # Django
 from django.db.models import Model, Prefetch, QuerySet, prefetch_related_objects
@@ -8,6 +10,12 @@ from django.utils.translation import gettext as _
 # Rest Framework
 from rest_framework import serializers
 from rest_framework.fields import empty
+from serializer_prefetch.typing import (
+    SerializerProtocol,
+    SerializerWithMethods,
+    T,
+    AdditionalSerializersTypedDict,
+)
 
 from serializer_prefetch.utils import (
     get_custom_related,
@@ -17,36 +25,44 @@ from serializer_prefetch.utils import (
 )
 
 
-class PrefetchingLogicMixin:
-    def __init__(self, *args, **kwargs):
+class PrefetchingLogicMixin(SerializerProtocol[T]):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
-        self._other_prefetching_methods = []
+        self._other_prefetching_methods: list[Callable[[], None]] = []
 
-    def get_select_related_data(self, serializer):
+    def get_select_related_data(
+        self, serializer: SerializerWithMethods[T]
+    ) -> Iterable[str]:
         if hasattr(serializer, "get_select_related"):
             return serializer.get_select_related()
 
         return getattr(serializer, "select_related", [])
 
-    def get_prefetch_related_data(self, serializer):
+    def get_prefetch_related_data(
+        self, serializer: SerializerWithMethods[T]
+    ) -> Iterable[str | Prefetch]:
         if hasattr(serializer, "get_prefetch_related"):
             return serializer.get_prefetch_related()
 
         return getattr(serializer, "prefetch_related", [])
 
-    def get_additional_serializers_data(self, serializer):
+    def get_additional_serializers_data(
+        self, serializer: SerializerWithMethods[T]
+    ) -> Iterable[AdditionalSerializersTypedDict[T]]:
         if hasattr(serializer, "get_additional_serializers"):
             return serializer.get_additional_serializers()
 
         return getattr(serializer, "additional_serializers", [])
 
-    def get_force_prefetch_data(self, serializer):
+    def get_force_prefetch_data(
+        self, serializer: SerializerWithMethods[T]
+    ) -> Iterable[str]:
         if hasattr(serializer, "get_force_prefetch"):
             return serializer.get_force_prefetch()
 
         return getattr(serializer, "force_prefetch", [])
 
-    def other_prefetching(self):
+    def other_prefetching(self) -> None:
         """
         Override this method to add additional prefetching that
         is not done on the queryset itself.
@@ -54,7 +70,7 @@ class PrefetchingLogicMixin:
         For example, to do some prefetching on the request.user.
         """
 
-    def queryset_after_prefetch(self, queryset):
+    def queryset_after_prefetch(self, queryset: QuerySet[T]) -> QuerySet[T]:
         """
         Override this method to make changes to the queryset
         BEFORE it becomes individual models.
@@ -68,7 +84,7 @@ class PrefetchingLogicMixin:
         """
         return queryset
 
-    def call_to_representation(self, instance):
+    def call_to_representation(self, instance: T) -> Any:
         """
         Override this method to make changes to the instance
         right before calling the ListSerializer's to_representation
@@ -78,18 +94,18 @@ class PrefetchingLogicMixin:
         to wrap to_representation in their queries_disabled context
         manager.
         """
-        return super().to_representation(instance)
+        return self.to_representation(instance)
 
-    def call_other_prefetching_methods(self):
+    def call_other_prefetching_methods(self) -> None:
         for method in self._other_prefetching_methods:
             method()
 
     def get_prefetch(
         self,
-        serializer: serializers.Serializer,
-        current_relation: Prefetch = None,
+        serializer: SerializerWithMethods[T],
+        current_relation: str | Prefetch | None = None,
         should_prefetch: bool = False,
-    ):
+    ) -> tuple[list[str], list[str | Prefetch]]:
         if hasattr(serializer, "child"):
             serializer = serializer.child
 
@@ -113,16 +129,16 @@ class PrefetchingLogicMixin:
             self._other_prefetching_methods.append(serializer.other_prefetching)
 
         if should_prefetch:
-            return [], select_items + prefetch_items
+            return [], select_items + prefetch_items  # type: ignore
 
         return select_items, prefetch_items
 
     def _extend_relation_items(
         self,
-        select_items: Iterable[str],
-        prefetch_items: Iterable[Prefetch],
-        return_values: Iterable[Iterable[Prefetch | str]],
-    ):
+        select_items: list[str],
+        prefetch_items: list[str | Prefetch],
+        return_values: tuple[list[str], list[Prefetch | str]],
+    ) -> tuple[list[str], list[Prefetch | str]]:
         select_items.extend(return_values[0])
 
         simple_prefetch_to = [
@@ -138,8 +154,14 @@ class PrefetchingLogicMixin:
 
         return select_items, prefetch_items
 
-    def _get_custom_relations(self, serializer, current_relation, *, force_prefetch=()):
-        select_related_attr = []
+    def _get_custom_relations(
+        self,
+        serializer: SerializerWithMethods[T],
+        current_relation: str | Prefetch | None,
+        *,
+        force_prefetch: Iterable[str] = (),
+    ) -> tuple[list[str], list[str | Prefetch]]:
+        select_related_attr: list[str] = []
         temp_select_related_attr = self.get_select_related_data(serializer)
         prefetch_related_attr = list(self.get_prefetch_related_data(serializer))
 
@@ -149,15 +171,19 @@ class PrefetchingLogicMixin:
             else:
                 select_related_attr.append(select)
 
-        custom_select_related = (
-            get_custom_related(select_related_attr, current_relation) or []
+        custom_select_related: list[str] = (
+            get_custom_related(select_related_attr, current_relation) or []  # type: ignore[assignment]
         )
-        custom_prefetch_related = (
-            get_custom_related(prefetch_related_attr, current_relation) or []
+        custom_prefetch_related: list[str | Prefetch] = (
+            get_custom_related(prefetch_related_attr, current_relation) or []  # type: ignore[assignment]
         )
-        return list(custom_select_related), list(custom_prefetch_related)
+        return custom_select_related, custom_prefetch_related
 
-    def _get_additional_serializers_relations(self, serializer, current_relation):
+    def _get_additional_serializers_relations(
+        self,
+        serializer: SerializerWithMethods[T],
+        current_relation: str | Prefetch | None,
+    ) -> tuple[list[str], list[Prefetch | str]]:
         additional_serializers = self.get_additional_serializers_data(serializer)
 
         select_items = []
@@ -197,7 +223,9 @@ class PrefetchingLogicMixin:
 
         return select_items, prefetch_items
 
-    def _get_all_prefetch_with_to_attr(self, serializer):
+    def _get_all_prefetch_with_to_attr(
+        self, serializer: SerializerWithMethods[T]
+    ) -> Generator[Prefetch, None, None]:
         yield from (
             p
             for p in self.get_prefetch_related_data(serializer)
@@ -211,35 +239,35 @@ class PrefetchingLogicMixin:
             != p["relation_and_field"].prefetch_through
         )
 
-    def _get_fields(self, serializer: serializers.Field):
+    def _get_fields(
+        self, serializer: SerializerWithMethods[T]
+    ) -> Generator[SerializerWithMethods[T], None, None]:
         for field in serializer.fields.values():
             if field.write_only:
                 continue
 
             child = getattr(field, "child", None)
 
-            if not isinstance(field, serializers.BaseSerializer) and not isinstance(
+            if isinstance(field, serializers.BaseSerializer) or isinstance(
                 child, serializers.BaseSerializer
             ):
-                continue
-
-            yield field
+                yield cast(SerializerWithMethods[T], field)
 
     def _get_serializer_field_relations(
         self,
-        serializer: serializers.Field,
-        current_relation,
-        should_prefetch,
-    ):
-        select_items = []
-        prefetch_items = []
+        serializer: SerializerWithMethods[T],
+        current_relation: str | Prefetch | None,
+        should_prefetch: bool,
+    ) -> tuple[list[str], list[str | Prefetch]]:
+        select_items: list[str] = []
+        prefetch_items: list[str | Prefetch] = []
 
         force_prefetch = self.get_force_prefetch_data(serializer)
 
         for field in self._get_fields(serializer):
             future_should_prefetch = should_prefetch or hasattr(field, "child")
 
-            source = getattr(field, "_prefetch_source", None) or field.source
+            source: str | Prefetch = getattr(field, "_prefetch_source", None) or field.source  # type: ignore[assignment]
 
             is_prefetch_object = False
 
@@ -253,7 +281,7 @@ class PrefetchingLogicMixin:
                     break
 
             model = get_model_from_serializer(serializer)
-            if not is_prefetch_object and not is_model_field(model, source):
+            if not is_prefetch_object and model and not is_model_field(model, source):
                 if getattr(field, "_prefetch_source", None):
                     raise ValueError(
                         _(
@@ -268,11 +296,14 @@ class PrefetchingLogicMixin:
 
                 continue
 
-            append_to = (
-                prefetch_items
-                if future_should_prefetch or source in force_prefetch
-                else select_items
-            )
+            if (
+                isinstance(source, str)
+                and source in force_prefetch
+                or future_should_prefetch
+            ):
+                append_to: list[str | Prefetch] = prefetch_items
+            else:
+                append_to = select_items  # type: ignore[assignment]
 
             if current_relation:
                 source = join_prefetch(current_relation, source)
@@ -298,19 +329,25 @@ class PrefetchingLogicMixin:
         return select_items, prefetch_items
 
 
-class List(list):
+class List(list[Any]):
     _serializer_prefetch_done = False
 
 
-class PrefetchingListSerializer(PrefetchingLogicMixin, serializers.ListSerializer):
+class PrefetchingListSerializer(PrefetchingLogicMixin, serializers.ListSerializer[T]):
     def __init__(
-        self, *args, auto_prefetch=True, prefetch_source: str | None = None, **kwargs
-    ):
+        self,
+        *args: Any,
+        auto_prefetch: bool = True,
+        prefetch_source: str | None = None,
+        **kwargs: Any,
+    ) -> None:
         self._auto_prefetch = auto_prefetch
         self._prefetch_source = prefetch_source
         super().__init__(*args, **kwargs)
 
-    def to_representation(self, instance, *args, **kwargs):
+    def to_representation(  # type: ignore[override]
+        self, instance: Iterable[T], *args: Any, **kwargs: Any
+    ) -> Any:
         prefetch_done = getattr(instance, "_serializer_prefetch_done", False)
         if prefetch_done or self.parent is not None or not self._auto_prefetch:
             return super().to_representation(instance)
@@ -346,14 +383,16 @@ class PrefetchingListSerializer(PrefetchingLogicMixin, serializers.ListSerialize
         return self.call_to_representation(instance)
 
 
-class Dict(dict):
+class Dict(dict[Any, Any]):
     _serializer_prefetch_done = False
 
 
 class PrefetchingSerializerMixin(PrefetchingLogicMixin):
     default_list_serializer_class = PrefetchingListSerializer
 
-    def to_representation(self, instance, *args, **kwargs):
+    def to_representation(  # type: ignore[override]
+        self, instance: Model | dict[str, Any], *args: Any, **kwargs: Any
+    ) -> Any:
         prefetch_done = getattr(instance, "_serializer_prefetch_done", False)
         if (
             not prefetch_done
@@ -361,11 +400,11 @@ class PrefetchingSerializerMixin(PrefetchingLogicMixin):
             and not self.parent
             and not getattr(instance, "_prefetched_objects_cache", None)
         ):
-            select_items, prefetch_items = self.get_prefetch(self)
+            select_items, prefetch_items = self.get_prefetch(self)  # type: ignore
 
-            for related_lookup in select_items + prefetch_items:
+            if isinstance(instance, Model):
                 try:
-                    prefetch_related_objects([instance], related_lookup)
+                    prefetch_related_objects([instance], *select_items, *prefetch_items)
                 except AttributeError as exc:
                     raise ValueError(
                         _(
@@ -376,7 +415,7 @@ class PrefetchingSerializerMixin(PrefetchingLogicMixin):
 
             if isinstance(instance, dict):
                 instance = Dict(instance)
-            instance._serializer_prefetch_done = True
+            instance._serializer_prefetch_done = True  # type: ignore[union-attr]
 
             self.call_other_prefetching_methods()
 
@@ -387,18 +426,18 @@ class PrefetchingSerializerMixin(PrefetchingLogicMixin):
 
     def __init__(
         self,
-        instance=None,
-        data=empty,
+        instance: Any | None = None,
+        data: Any = empty,
         auto_prefetch: bool = True,
         prefetch_source: str | None = None,
-        **kwargs
-    ):
+        **kwargs: Any,
+    ) -> None:
         self._auto_prefetch = auto_prefetch
         self._prefetch_source = prefetch_source
         super().__init__(instance, data, **kwargs)
 
     @classmethod
-    def many_init(cls, *args, **kwargs):
+    def many_init(cls, *args: Any, **kwargs: Any) -> PrefetchingListSerializer[T]:
         allow_empty = kwargs.pop("allow_empty", None)
         max_length = kwargs.pop("max_length", None)
         min_length = kwargs.pop("min_length", None)
@@ -434,4 +473,4 @@ class PrefetchingSerializerMixin(PrefetchingLogicMixin):
                 )
             )
 
-        return list_serializer(*args, **list_kwargs)
+        return list_serializer(*args, **list_kwargs)  # type: ignore[abstract]
