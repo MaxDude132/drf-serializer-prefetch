@@ -48,7 +48,7 @@ class PrefetchingLogicMixin(SerializerProtocol[T]):
 
     def get_additional_serializers_data(
         self, serializer: SerializerWithMethods[T]
-    ) -> Iterable[AdditionalSerializersTypedDict[T]]:
+    ) -> Iterable[AdditionalSerializersTypedDict]:
         if hasattr(serializer, "get_additional_serializers"):
             return serializer.get_additional_serializers()
 

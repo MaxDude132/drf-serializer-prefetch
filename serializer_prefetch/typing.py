@@ -9,8 +9,8 @@ from rest_framework.serializers import BaseSerializer, Serializer
 T = TypeVar("T", bound=Model)
 
 
-class AdditionalSerializersTypedDict(TypedDict, Generic[T]):
-    serializer: SerializerWithMethods[T]
+class AdditionalSerializersTypedDict(TypedDict):
+    serializer: SerializerWithMethods
     relation_and_field: str | Prefetch
 
 
@@ -21,7 +21,7 @@ class SerializerWithMethods(Serializer[T]):
     def get_prefetch_related(self) -> Iterable[str | Prefetch]:
         return []
 
-    def get_additional_serializers(self) -> Iterable[AdditionalSerializersTypedDict[T]]:
+    def get_additional_serializers(self) -> Iterable[AdditionalSerializersTypedDict]:
         return []
 
     def get_force_prefetch(self) -> Iterable[str]:
