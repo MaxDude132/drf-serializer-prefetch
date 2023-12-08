@@ -8,7 +8,12 @@ from rest_framework import serializers
 # drf-serializer-prefetch
 from serializer_prefetch import PrefetchingSerializerMixin
 from tests.models import Continent, Country, Pizza, Topping
-from tests.serializers import CountrySerializer, PizzaSerializer, ToppingSerializer
+from tests.serializers import (
+    ContinentSerializer,
+    CountrySerializer,
+    PizzaSerializer,
+    ToppingSerializer,
+)
 
 
 class SerializersTestCase(TestCase):
@@ -941,6 +946,22 @@ class SerializersTestCase(TestCase):
 
         pizzas = Pizza.objects.all()
         serializer = PizzaSerializer(pizzas, many=True)
+
+        with self.assertNumQueries(2):
+            serializer.data
+
+    def test_reverse_many_to_many_relation(self):
+        class ContinentSerializer(
+            PrefetchingSerializerMixin, serializers.ModelSerializer
+        ):
+            country_set = CountrySerializer(many=True)
+
+            class Meta:
+                model = Continent
+                fields = ("label", "country_set")
+
+        continents = Continent.objects.all()
+        serializer = ContinentSerializer(continents, many=True)
 
         with self.assertNumQueries(2):
             serializer.data

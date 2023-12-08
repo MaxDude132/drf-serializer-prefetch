@@ -14,6 +14,9 @@ def is_model_field(model, source):
             if not isinstance(model_field, DjangoModelField | ForeignObjectRel):
                 return False
         except FieldDoesNotExist:
+            if source.endswith("_set"):
+                return is_model_field(model, source[:-4])
+
             return False
 
     return True
