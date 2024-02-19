@@ -119,6 +119,9 @@ class ConditionsTestCase(TestCase):
             toppings = ToppingSerializer(many=True)
             label = serializers.CharField()
 
+            class Meta:
+                model = Pizza
+
         pizzas = Pizza.objects.all()
         serializer = PizzaSerializer(pizzas, many=True)
 
