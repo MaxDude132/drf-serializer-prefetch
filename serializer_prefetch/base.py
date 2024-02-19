@@ -87,7 +87,7 @@ class PrefetchingLogicMixin:
     def get_prefetch(
         self,
         serializer: serializers.Serializer,
-        current_relation: Prefetch = None,
+        current_relation: Prefetch | None = None,
         should_prefetch: bool = False,
     ):
         if hasattr(serializer, "child"):
@@ -119,9 +119,9 @@ class PrefetchingLogicMixin:
 
     def _extend_relation_items(
         self,
-        select_items: Iterable[str],
-        prefetch_items: Iterable[Prefetch],
-        return_values: Iterable[Iterable[Prefetch | str]],
+        select_items: list[str],
+        prefetch_items: list[Prefetch | str],
+        return_values: tuple[list[str], list[Prefetch | str]],
     ):
         select_items.extend(return_values[0])
 
@@ -211,7 +211,7 @@ class PrefetchingLogicMixin:
             != p["relation_and_field"].prefetch_through
         )
 
-    def _get_fields(self, serializer: serializers.Field):
+    def _get_fields(self, serializer: serializers.Serializer):
         for field in serializer.fields.values():
             if field.write_only:
                 continue
@@ -227,12 +227,12 @@ class PrefetchingLogicMixin:
 
     def _get_serializer_field_relations(
         self,
-        serializer: serializers.Field,
+        serializer: serializers.Serializer,
         current_relation,
         should_prefetch,
     ):
-        select_items = []
-        prefetch_items = []
+        select_items: list[str] = []
+        prefetch_items: list[str | Prefetch] = []
 
         force_prefetch = self.get_force_prefetch_data(serializer)
 
@@ -291,7 +291,7 @@ class PrefetchingLogicMixin:
             if meta:
                 model = getattr(meta, "model", None)
             if meta and model:
-                append_to.append(source)
+                append_to.append(source)  # type: ignore
                 select_items.extend(add_to_select)
                 prefetch_items.extend(add_to_prefetch)
 
@@ -318,7 +318,7 @@ class PrefetchingListSerializer(PrefetchingLogicMixin, serializers.ListSerialize
         child = self.child
         select_items, prefetch_items = self.get_prefetch(child)
 
-        if isinstance(instance, QuerySet):
+        if isinstance(instance, QuerySet):  # type: ignore
             if select_items:
                 instance = instance.select_related(*select_items)
             instance = instance.prefetch_related(*prefetch_items)
