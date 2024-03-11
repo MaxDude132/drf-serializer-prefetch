@@ -965,3 +965,17 @@ class SerializersTestCase(TestCase):
 
         with self.assertNumQueries(2):
             serializer.data
+
+    def test_default_id_relation(self):
+        class ContinentSerializer(
+            PrefetchingSerializerMixin, serializers.ModelSerializer
+        ):
+            class Meta:
+                model = Continent
+                fields = ("id", "label", "country_set")
+
+        continents = Continent.objects.all()
+        serializer = ContinentSerializer(continents, many=True)
+
+        with self.assertNumQueries(2):
+            serializer.data
