@@ -2,11 +2,17 @@
 from collections.abc import Iterable
 
 # Django
-from django.db.models import Model, Prefetch, QuerySet, prefetch_related_objects
+from django.db.models import (
+    Manager,
+    Model,
+    Prefetch,
+    QuerySet,
+    prefetch_related_objects,
+)
 from django.utils.translation import gettext as _
 
 # Rest Framework
-from rest_framework import serializers
+from rest_framework import serializers, relations
 from rest_framework.fields import empty
 
 from serializer_prefetch.utils import (
@@ -212,14 +218,19 @@ class PrefetchingLogicMixin:
         )
 
     def _get_fields(self, serializer: serializers.Serializer):
+        if not hasattr(serializer, "fields"):
+            return
+
         for field in serializer.fields.values():
             if field.write_only:
                 continue
 
             child = getattr(field, "child", None)
 
-            if not isinstance(field, serializers.BaseSerializer) and not isinstance(
-                child, serializers.BaseSerializer
+            if not isinstance(
+                field, (serializers.BaseSerializer, relations.ManyRelatedField)
+            ) and not isinstance(
+                child, (serializers.BaseSerializer, relations.ManyRelatedField)
             ):
                 continue
 
@@ -237,7 +248,11 @@ class PrefetchingLogicMixin:
         force_prefetch = self.get_force_prefetch_data(serializer)
 
         for field in self._get_fields(serializer):
-            future_should_prefetch = should_prefetch or hasattr(field, "child")
+            future_should_prefetch = (
+                should_prefetch
+                or hasattr(field, "child")
+                or hasattr(field, "child_relation")
+            )
 
             source = getattr(field, "_prefetch_source", None) or field.source
 
@@ -283,14 +298,33 @@ class PrefetchingLogicMixin:
                 should_prefetch=future_should_prefetch,
             )
 
-            meta = (
-                getattr(field.child, "Meta", None)
-                if hasattr(field, "child")
-                else getattr(field, "Meta", None)
-            )
+            model = None
+            if hasattr(field, "child"):
+                meta = getattr(field.child, "Meta", None)
+            elif hasattr(field, "child_relation"):
+                meta = getattr(field.child_relation, "Meta", None)
+            else:
+                meta = getattr(field, "Meta", None)
+
             if meta:
                 model = getattr(meta, "model", None)
-            if meta and model:
+
+            if hasattr(field, "child"):
+                queryset = getattr(field.child, "queryset", None)
+            elif hasattr(field, "child_relation"):
+                queryset = getattr(field.child_relation, "queryset", None)
+            else:
+                queryset = getattr(field, "queryset", None)
+
+            if not model and queryset:
+                model = queryset.model
+                if isinstance(queryset, Manager):
+                    queryset = queryset.get_queryset()
+                source = Prefetch(source, queryset)
+
+            print(source)
+
+            if model:
                 append_to.append(source)  # type: ignore
                 select_items.extend(add_to_select)
                 prefetch_items.extend(add_to_prefetch)
