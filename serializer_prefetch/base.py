@@ -322,8 +322,6 @@ class PrefetchingLogicMixin:
                     queryset = queryset.get_queryset()
                 source = Prefetch(source, queryset)
 
-            print(source)
-
             if model:
                 append_to.append(source)  # type: ignore
                 select_items.extend(add_to_select)
