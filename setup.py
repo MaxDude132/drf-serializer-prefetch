@@ -4,7 +4,7 @@ from pathlib import Path
 # drf-serializer-prefetch
 from setuptools import find_packages, setup
 
-VERSION = "1.1.11"
+VERSION = "1.1.12"
 DESCRIPTION = "An automatic prefetcher for django-rest-framework."
 this_directory = Path(__file__).parent
 LONG_DESCRIPTION = (this_directory / "README.md").read_text()
